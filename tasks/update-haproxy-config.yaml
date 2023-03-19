@@ -1,0 +1,26 @@
+---
+- hosts: loadbalancer
+  become: yes
+
+  vars_files:
+    - haproxy-config-vars/haproxy-defaults.yaml
+    - haproxy-config-vars/haproxy-global-vars.yaml
+
+  tasks:
+    - name: Update custom plugin on HAProxy server
+      ansible.builtin.template:
+        src: templates/nagios-plugins/check_haproxy_down_servers.py.j2
+        dest: /usr/local/nagios/libexec/check_haproxy_down_servers.py
+        mode: '0750'
+        owner: haproxy
+        group: haproxy
+    - name: Copy updated HAProxy config file in place
+      ansible.builtin.template:
+        src: ./templates/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        mode: '0644'
+        validate: haproxy -f %s -c -q
+    - name: Restart haproxy service
+      ansible.builtin.service:
+        name: haproxy
+        state: restarted

@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: "Include alesauce.ansible_role_install_haproxy"
+      ansible.builtin.include_role:
+        name: "alesauce.ansible_role_install_haproxy"

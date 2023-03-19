@@ -1,0 +1,42 @@
+---
+- hosts: loadbalancer
+  become: yes
+  # This playbook uses cached facts from other hosts to fill in the template. If facts aren't cached for the backend server group, run 'gather_facts' in the root of this directory.
+  gather_facts: no
+
+  vars_files:
+    - haproxy-config-vars/haproxy-defaults.yaml
+    - haproxy-config-vars/haproxy-global-vars.yaml
+
+  tasks:
+    - name: Install recommended companion packages
+      ansible.builtin.apt:
+        update_cache: true
+        name:
+          - socat
+          - tcpdump
+          - strace
+        state: present
+    - name: Ensure HAProxy is installed via apt
+      ansible.builtin.apt:
+        update_cache: true
+        name: haproxy
+        state: present
+    - name: Install custom Nagios plugin on HAProxy server
+      ansible.builtin.template:
+        src: templates/nagios-plugins/check_haproxy_down_servers.py.j2
+        dest: /usr/local/nagios/libexec/check_haproxy_down_servers.py
+        mode: '0750'
+        owner: haproxy
+        group: haproxy
+    - name: Copy HAProxy config file in place
+      ansible.builtin.template:
+        src: ./templates/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        mode: '0644'
+        validate: haproxy -f %s -c -q
+    - name: Start HAProxy service
+      ansible.builtin.service:
+        name: haproxy
+        enabled: true
+        state: started

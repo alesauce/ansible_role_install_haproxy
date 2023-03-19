@@ -1,0 +1,5 @@
+---
+# Used to define extra global variables for haproxy config outside of the default ones for a cluster. See HAProxy global parameters configuration for more information: http://docs.haproxy.org/2.0/configuration.html#3
+# As these are parsed directly into the file, encapsulate the entire parameter into a string
+haproxy_global_vars:
+  - "description Load balancer for Expensify infrastructure challenge"

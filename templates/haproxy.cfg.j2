@@ -1,0 +1,55 @@
+# {{ ansible_managed }}
+# Configuration reference can be found here: http://docs.haproxy.org/2.0/configuration.html
+
+global
+  chroot {{ haproxy_chroot }}
+  group {{ haproxy_group }}
+  master-worker
+  log /dev/log  local0
+  log /dev/log  local1 notice
+  stats socket {{ haproxy_socket }} level operator mode 660 group {{ haproxy_group }}
+  stats timeout 2m
+  user {{ haproxy_user }}
+{% for global_var in haproxy_global_vars %}
+  {{ global_var }}
+{% endfor %}
+
+defaults
+  log global
+  mode  http
+  option  httplog
+  option  log-health-checks
+  retries {{ haproxy_retries_number }}
+  timeout connect {{ haproxy_connect_timeout }}
+  timeout client {{ haproxy_client_timeout }}
+  timeout server {{ haproxy_server_timeout }}
+{% if ansible_os_family == 'Debian' %}
+  errorfile 400 /etc/haproxy/errors/400.http
+  errorfile 403 /etc/haproxy/errors/403.http
+  errorfile 408 /etc/haproxy/errors/408.http
+  errorfile 500 /etc/haproxy/errors/500.http
+  errorfile 502 /etc/haproxy/errors/502.http
+  errorfile 503 /etc/haproxy/errors/503.http
+  errorfile 504 /etc/haproxy/errors/504.http
+{% endif %}
+
+frontend {{ haproxy_frontend_name }}
+  bind {{ haproxy_frontend_bind_address }}:{{ haproxy_frontend_port }}
+  mode {{ haproxy_frontend_mode }}
+  default_backend {{ haproxy_backend_name }}
+
+backend {{ haproxy_backend_name }}
+  mode {{ haproxy_backend_mode }}
+  balance {{ haproxy_backend_balance_method }}
+  option forwardfor
+# Sticky session configuration
+  option redispatch
+  cookie SERVERID insert indirect
+# End sticky session configuration
+# Inputs for health checking servers via HTTP instead of TCP
+  option httpchk {{ haproxy_backend_httpchk }}
+  http-check send hdr {{ haproxy_backend_httpchk_header_name }} {{ haproxy_backend_httpchk_header_value }}
+# End health check configuration
+{% for server in query('inventory_hostnames', haproxy_backend_server_group) %}
+  server {{ hostvars[server]['ansible_facts']['nodename'] }} {{ hostvars[server]['ansible_facts']['default_ipv4']['address'] }}:{{ haproxy_backend_port }} cookie {{ hostvars[server]['ansible_facts']['nodename'] }} check
+{% endfor %}
